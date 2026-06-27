@@ -10,16 +10,19 @@ export default function App() {
   const { theme, hydrate, setServerUrl, setApiToken, setConnected } = useSettingsStore();
 
   useEffect(() => {
-    hydrate();
-
-    const storedUrl = getStoredServerUrl();
-    const storedToken = getStoredToken();
-    if (storedUrl && storedToken) {
-      api.configure(storedUrl, storedToken);
-      setServerUrl(storedUrl);
-      setApiToken(storedToken);
-      setConnected(true);
-    }
+    (async () => {
+      await hydrate();
+      const [storedUrl, storedToken] = await Promise.all([
+        getStoredServerUrl(),
+        getStoredToken(),
+      ]);
+      if (storedUrl && storedToken) {
+        api.configure(storedUrl, storedToken);
+        setServerUrl(storedUrl);
+        setApiToken(storedToken);
+        setConnected(true);
+      }
+    })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const isDark =

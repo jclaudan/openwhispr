@@ -1,11 +1,48 @@
 import { create } from "zustand";
 import type { ThemeMode, InferenceMode } from "../types";
+import { logger } from "../utils/logger";
+
+let AsyncStorage: any;
+try {
+  AsyncStorage = require("@react-native-async-storage/async-storage").default;
+} catch {
+  logger.warn("AsyncStorage not available, settings won't persist");
+}
+
+const STORAGE_KEY = "openwhispr:settings";
+const memoryStore = new Map<string, string>();
+
+async function getItem(key: string): Promise<string | null> {
+  try {
+    if (AsyncStorage) return AsyncStorage.getItem(key);
+    return memoryStore.get(key) ?? null;
+  } catch {
+    return memoryStore.get(key) ?? null;
+  }
+}
+
+async function setItem(key: string, value: string): Promise<void> {
+  try {
+    if (AsyncStorage) return AsyncStorage.setItem(key, value);
+    memoryStore.set(key, value);
+  } catch {
+    memoryStore.set(key, value);
+  }
+}
+
+interface PersistedSettings {
+  serverUrl: string;
+  apiToken: string;
+  theme: ThemeMode;
+  transcriptionMode: InferenceMode;
+}
 
 interface SettingsState {
   serverUrl: string;
   apiToken: string;
   theme: ThemeMode;
   isConnected: boolean;
+  isHydrated: boolean;
   transcriptionMode: InferenceMode;
 
   setServerUrl: (url: string) => void;
@@ -13,16 +50,8 @@ interface SettingsState {
   setTheme: (theme: ThemeMode) => void;
   setConnected: (connected: boolean) => void;
   setTranscriptionMode: (mode: InferenceMode) => void;
-  hydrate: () => void;
-  persist: () => void;
-}
-
-function getStorage(): Storage | null {
-  try {
-    return window.localStorage;
-  } catch {
-    return null;
-  }
+  hydrate: () => Promise<void>;
+  persist: () => Promise<void>;
 }
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
@@ -30,6 +59,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   apiToken: "",
   theme: "auto",
   isConnected: false,
+  isHydrated: false,
   transcriptionMode: "self-hosted",
 
   setServerUrl: (url: string) => {
@@ -56,33 +86,31 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     get().persist();
   },
 
-  hydrate: () => {
-    const storage = getStorage();
-    if (!storage) return;
+  hydrate: async () => {
     try {
-      const raw = storage.getItem("openwhispr:settings");
+      const raw = await getItem(STORAGE_KEY);
       if (raw) {
-        const parsed = JSON.parse(raw);
+        const parsed: PersistedSettings = JSON.parse(raw);
         set({
           serverUrl: parsed.serverUrl ?? "",
           apiToken: parsed.apiToken ?? "",
           theme: parsed.theme ?? "auto",
-          isConnected: parsed.isConnected ?? false,
           transcriptionMode: parsed.transcriptionMode ?? "self-hosted",
+          isHydrated: true,
         });
+      } else {
+        set({ isHydrated: true });
       }
     } catch {
-      // ignore
+      set({ isHydrated: true });
     }
   },
 
-  persist: () => {
-    const storage = getStorage();
-    if (!storage) return;
-    const { serverUrl, apiToken, theme, isConnected, transcriptionMode } = get();
-    storage.setItem(
-      "openwhispr:settings",
-      JSON.stringify({ serverUrl, apiToken, theme, isConnected, transcriptionMode }),
+  persist: async () => {
+    const { serverUrl, apiToken, theme, transcriptionMode } = get();
+    await setItem(
+      STORAGE_KEY,
+      JSON.stringify({ serverUrl, apiToken, theme, transcriptionMode } satisfies PersistedSettings),
     );
   },
 }));

@@ -1,32 +1,60 @@
 import { logger } from "../utils/logger";
 
+let AsyncStorage: any;
+try {
+  AsyncStorage = require("@react-native-async-storage/async-storage").default;
+} catch {
+  logger.warn("@react-native-async-storage/async-storage not available, using in-memory fallback");
+}
+
 const TOKEN_STORAGE_KEY = "openwhispr:authToken";
 const SERVER_URL_KEY = "openwhispr:serverUrl";
 
-function getStorage(): Storage | null {
+const memoryStore = new Map<string, string>();
+
+async function getItem(key: string): Promise<string | null> {
   try {
-    return window.localStorage;
+    if (AsyncStorage) return AsyncStorage.getItem(key);
+    return memoryStore.get(key) ?? null;
   } catch {
-    return null;
+    return memoryStore.get(key) ?? null;
   }
 }
 
-export function getStoredToken(): string {
-  return getStorage()?.getItem(TOKEN_STORAGE_KEY) ?? "";
+async function setItem(key: string, value: string): Promise<void> {
+  try {
+    if (AsyncStorage) return AsyncStorage.setItem(key, value);
+    memoryStore.set(key, value);
+  } catch {
+    memoryStore.set(key, value);
+  }
 }
 
-export function getStoredServerUrl(): string {
-  return getStorage()?.getItem(SERVER_URL_KEY) ?? "";
+async function removeItem(key: string): Promise<void> {
+  try {
+    if (AsyncStorage) return AsyncStorage.removeItem(key);
+    memoryStore.delete(key);
+  } catch {
+    memoryStore.delete(key);
+  }
 }
 
-export function storeAuth(token: string, serverUrl: string) {
-  getStorage()?.setItem(TOKEN_STORAGE_KEY, token);
-  getStorage()?.setItem(SERVER_URL_KEY, serverUrl);
+export async function getStoredToken(): Promise<string> {
+  return (await getItem(TOKEN_STORAGE_KEY)) ?? "";
 }
 
-export function clearAuth() {
-  getStorage()?.removeItem(TOKEN_STORAGE_KEY);
-  getStorage()?.removeItem(SERVER_URL_KEY);
+export async function getStoredServerUrl(): Promise<string> {
+  return (await getItem(SERVER_URL_KEY)) ?? "";
+}
+
+export async function storeAuth(token: string, serverUrl: string) {
+  await setItem(TOKEN_STORAGE_KEY, token);
+  await setItem(SERVER_URL_KEY, serverUrl);
+}
+
+export async function clearAuth() {
+  await removeItem(TOKEN_STORAGE_KEY);
+  await removeItem(SERVER_URL_KEY);
 }
 
 export async function authenticate(

@@ -6,7 +6,7 @@ export function useSettings() {
 
   useEffect(() => {
     store.hydrate();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [store]);
 
   return store;
 }

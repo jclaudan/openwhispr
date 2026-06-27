@@ -164,14 +164,21 @@ Pour activer le mode serveur :
 
 ## Application mobile
 
-Une future application mobile APK est envisagée pour permettre :
+Une application mobile React Native est disponible dans le dossier [`mobile/`](mobile/). Elle se connecte au serveur de synchronisation ou directement au desktop pour offrir :
 
-- **Dictée vocale depuis le téléphone** — enregistrez sur votre mobile, transcrit sur le desktop
-- **Consultation des notes** — accédez à toutes vos notes synchronisées
-- **Transcription de réunions mobiles** — enregistrez sur mobile, traité sur le desktop
-- **Notifications push** — soyez averti quand une transcription est prête
+- **Dictée vocale depuis le téléphone** — enregistrez sur votre mobile, transcrit sur le serveur
+- **Consultation et édition des notes** — accédez à toutes vos notes synchronisées avec filtrage par dossier
+- **Historique des transcriptions** — parcourez et gérez vos transcriptions
+- **Thème clair/sombre** — suit la configuration système
+- **Connexion sécurisée** — authentification JWT, support Cloudflared Tunnel
 
-L'APK serait un client React Native (ou équivalent cross-platform) se connectant au serveur de synchronisation ou directement au desktop via l'API REST.
+```bash
+cd mobile
+npm install
+npx react-native run-android   # ou run-ios
+```
+
+Voir le [README mobile](mobile/README.md) pour plus de détails.
 
 ## Sécurité
 

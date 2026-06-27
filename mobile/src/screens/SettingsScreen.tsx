@@ -31,7 +31,7 @@ export default function SettingsScreen() {
     setIsConnecting(true);
     try {
       const result = await authenticate(editUrl.trim(), editToken.trim());
-      api.configure(result.token, editUrl.trim());
+      api.configure(editUrl.trim(), result.token);
       setServerUrl(editUrl.trim());
       setApiToken(result.token);
       setConnected(true);
@@ -64,9 +64,12 @@ export default function SettingsScreen() {
         </Text>
 
         <Card>
-          <Text style={{ fontSize: 14, fontWeight: "600", color: colors.foreground, marginBottom: 12 }}>
-            <Server size={14} color={colors.primary} /> Serveur
-          </Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 }}>
+            <Server size={14} color={colors.primary} />
+            <Text style={{ fontSize: 14, fontWeight: "600", color: colors.foreground }}>
+              Serveur
+            </Text>
+          </View>
 
           {!isConnected ? (
             <>
@@ -124,9 +127,12 @@ export default function SettingsScreen() {
         </Card>
 
         <Card>
-          <Text style={{ fontSize: 14, fontWeight: "600", color: colors.foreground, marginBottom: 12 }}>
-            <Palette size={14} color={colors.primary} /> Apparence
-          </Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 }}>
+            <Palette size={14} color={colors.primary} />
+            <Text style={{ fontSize: 14, fontWeight: "600", color: colors.foreground }}>
+              Apparence
+            </Text>
+          </View>
           <Button variant="outline" onPress={toggleTheme}>
             {theme === "dark" ? "🌙 Mode sombre" : "☀️ Mode clair"}
           </Button>
