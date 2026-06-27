@@ -37,9 +37,9 @@ export function useAudioRecording() {
       setState({ isRecording: false, isProcessing: true, error: null });
 
       if (api.isConfigured()) {
-        const transcriptionResult = await api.uploadAudio("/api/transcribe", result.path);
+        const transcriptionResult = await api.uploadAudio(result.path);
         setState({ isRecording: false, isProcessing: false, error: null });
-        return (transcriptionResult as any)?.text ?? null;
+        return transcriptionResult?.text ?? null;
       }
 
       setState({ isRecording: false, isProcessing: false, error: null });

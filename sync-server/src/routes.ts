@@ -191,4 +191,67 @@ router.delete("/dictionary/:word", (req, res) => {
   res.json({ success: true });
 });
 
+router.get("/agent/conversations", (_req, res) => {
+  const rows = getDb().prepare(
+    "SELECT * FROM agent_conversations WHERE deleted_at IS NULL ORDER BY updated_at DESC"
+  ).all();
+  res.json({ data: rows });
+});
+
+router.post("/agent/conversations", (req, res) => {
+  const { title, note_id } = req.body;
+  const cloudId = uuid();
+  const result = getDb().prepare(
+    "INSERT INTO agent_conversations (cloud_id, title, note_id) VALUES (?, ?, ?)"
+  ).run(cloudId, title ?? "Untitled", note_id ?? null);
+  const row = getDb().prepare("SELECT * FROM agent_conversations WHERE id = ?").get(result.lastInsertRowid);
+  res.status(201).json({ data: row });
+});
+
+router.patch("/agent/conversations/:cloudId", (req, res) => {
+  const { title, archived_at } = req.body;
+  const updates: string[] = [];
+  const params: any[] = [];
+  if (title !== undefined) { updates.push("title = ?"); params.push(title); }
+  if (archived_at !== undefined) { updates.push("archived_at = ?"); params.push(archived_at); }
+  if (updates.length === 0) return res.status(400).json({ error: "No fields to update" });
+  updates.push("updated_at = CURRENT_TIMESTAMP");
+  params.push(req.params.cloudId);
+  getDb().prepare(`UPDATE agent_conversations SET ${updates.join(", ")} WHERE cloud_id = ?`).run(...params);
+  const row = getDb().prepare("SELECT * FROM agent_conversations WHERE cloud_id = ?").get(req.params.cloudId);
+  res.json({ data: row });
+});
+
+router.delete("/agent/conversations/:cloudId", (req, res) => {
+  getDb().prepare("UPDATE agent_conversations SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE cloud_id = ?").run(req.params.cloudId);
+  res.json({ success: true });
+});
+
+router.get("/agent/conversations/:cloudId/messages", (req, res) => {
+  const conv = getDb().prepare("SELECT id FROM agent_conversations WHERE cloud_id = ?").get(req.params.cloudId) as any;
+  if (!conv) return res.status(404).json({ error: "Conversation not found" });
+  const rows = getDb().prepare(
+    "SELECT * FROM agent_messages WHERE conversation_id = ? ORDER BY created_at ASC"
+  ).all(conv.id);
+  res.json({ data: rows });
+});
+
+router.post("/agent/conversations/:cloudId/messages", (req, res) => {
+  const conv = getDb().prepare("SELECT id, cloud_id FROM agent_conversations WHERE cloud_id = ?").get(req.params.cloudId) as any;
+  if (!conv) return res.status(404).json({ error: "Conversation not found" });
+  const { role, content, metadata } = req.body;
+  if (!role || !["user", "assistant", "system"].includes(role)) {
+    return res.status(400).json({ error: "Invalid role" });
+  }
+  if (!content || typeof content !== "string") {
+    return res.status(400).json({ error: "Content is required" });
+  }
+  const result = getDb().prepare(
+    "INSERT INTO agent_messages (conversation_id, role, content, metadata) VALUES (?, ?, ?, ?)"
+  ).run(conv.id, role, content, metadata ? JSON.stringify(metadata) : null);
+  getDb().prepare("UPDATE agent_conversations SET updated_at = CURRENT_TIMESTAMP WHERE cloud_id = ?").run(req.params.cloudId);
+  const row = getDb().prepare("SELECT * FROM agent_messages WHERE id = ?").get(result.lastInsertRowid);
+  res.status(201).json({ data: row });
+});
+
 export default router;

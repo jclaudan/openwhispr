@@ -48,6 +48,22 @@ function readJsonBody(req) {
   });
 }
 
+function readBufferBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    req.on("data", (chunk) => {
+      chunks.push(chunk);
+      const total = chunks.reduce((s, c) => s + c.length, 0);
+      if (total > MAX_REQUEST_BODY_BYTES) {
+        reject(new Error("Request body too large"));
+        req.destroy();
+      }
+    });
+    req.on("end", () => resolve(Buffer.concat(chunks)));
+    req.on("error", reject);
+  });
+}
+
 function sendJson(res, statusCode, payload) {
   const body = JSON.stringify(payload);
   res.writeHead(statusCode, {
@@ -161,7 +177,8 @@ class CliBridge {
 
   async _handleRequest(req, res) {
     const remote = req.socket?.remoteAddress;
-    if (!remote || !LOOPBACK_ADDRESSES.has(remote)) {
+    const allowExternal = process.env.OPENWHISPR_BRIDGE_EXTERNAL === "true";
+    if (!allowExternal && (!remote || !LOOPBACK_ADDRESSES.has(remote))) {
       sendV1Error(res, 403, "forbidden", "Forbidden");
       return;
     }
@@ -183,10 +200,10 @@ class CliBridge {
       return;
     }
 
-    let body = {};
+    let body;
     if (req.method !== "GET" && req.method !== "DELETE") {
       try {
-        body = await readJsonBody(req);
+        body = route.rawBody ? await readBufferBody(req) : await readJsonBody(req);
       } catch (err) {
         sendV1Error(res, 400, "validation_error", err.message);
         return;
@@ -225,11 +242,12 @@ class CliBridge {
   }
 
   _buildRouteTable() {
-    const exact = (method, path, handler, status) => ({
+    const exact = (method, path, handler, status, opts = {}) => ({
       method,
       match: (p) => (p === path ? {} : null),
       handler,
       status,
+      rawBody: !!opts.rawBody,
     });
     const param = (method, prefix, suffix, paramName, handler, status) => ({
       method,
@@ -270,8 +288,40 @@ class CliBridge {
       }
     };
 
+    const transcribe = async ({ body, query }) => {
+      if (!Buffer.isBuffer(body) || body.length === 0) {
+        throw Object.assign(new Error("Audio data is required"), { code: "VALIDATION" });
+      }
+      const provider = query.get("provider") || "whisper";
+      const model = query.get("model") || null;
+      const language = query.get("language") || "auto";
+      const prompt = query.get("prompt") || null;
+
+      if (provider === "nvidia") {
+        if (!this.ipcHandlers.parakeetManager) {
+          throw Object.assign(new Error("Parakeet provider not available"), { code: "NOT_FOUND" });
+        }
+        const result = await this.ipcHandlers.parakeetManager.transcribeLocalParakeet(body, { model });
+        return { data: { text: result.text || "" } };
+      }
+
+      if (!this.ipcHandlers.whisperManager) {
+        throw Object.assign(new Error("Whisper provider not available"), { code: "NOT_FOUND" });
+      }
+      const result = await this.ipcHandlers.whisperManager.transcribeLocalWhisper(body, {
+        model,
+        language,
+        initialPrompt: prompt,
+      });
+      if (!result.success) {
+        throw new Error(result.message || "Transcription failed");
+      }
+      return { data: { text: result.text } };
+    };
+
     return [
       exact("GET", "/v1/health", () => ({ data: { ok: true, version: 1 } })),
+      exact("POST", "/v1/transcribe", transcribe, 200, { rawBody: true }),
       exact("GET", "/v1/notes/list", ({ query }) => {
         const noteType = query.get("note_type") || null;
         const limit = query.get("limit") ? Number(query.get("limit")) : 100;

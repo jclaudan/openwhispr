@@ -58,6 +58,26 @@ export interface ApiKey {
   created_at: string;
 }
 
+export interface Conversation {
+  id: number;
+  cloud_id: string | null;
+  title: string;
+  note_id: number | null;
+  archived_at: string | null;
+  deleted_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Message {
+  id: number;
+  conversation_id: number;
+  role: "user" | "assistant" | "system";
+  content: string;
+  metadata: string | null;
+  created_at: string;
+}
+
 export type ThemeMode = "light" | "dark" | "auto";
 
 export interface ServerConfig {

@@ -2,7 +2,7 @@ import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { NavigationContainer } from "@react-navigation/native";
-import { Home, FileText, History, Settings } from "lucide-react-native";
+import { Home, FileText, History, Settings, MessageSquare } from "lucide-react-native";
 import { useSettingsStore } from "../stores/settingsStore";
 import { COLORS, DARK_COLORS } from "../config/constants";
 
@@ -11,9 +11,12 @@ import NotesListScreen from "../screens/NotesListScreen";
 import NoteDetailScreen from "../screens/NoteDetailScreen";
 import TranscriptionsScreen from "../screens/TranscriptionsScreen";
 import SettingsScreen from "../screens/SettingsScreen";
+import ChatListScreen from "../screens/ChatListScreen";
+import ChatDetailScreen from "../screens/ChatDetailScreen";
 
 const Tab = createBottomTabNavigator();
 const NotesStack = createNativeStackNavigator();
+const ChatStack = createNativeStackNavigator();
 
 function NotesStackScreen() {
   const theme = useSettingsStore((s) => s.theme);
@@ -30,6 +33,24 @@ function NotesStackScreen() {
       <NotesStack.Screen name="NotesList" component={NotesListScreen} />
       <NotesStack.Screen name="NoteDetail" component={NoteDetailScreen} />
     </NotesStack.Navigator>
+  );
+}
+
+function ChatStackScreen() {
+  const theme = useSettingsStore((s) => s.theme);
+  const isDark = theme === "dark";
+  const colors = isDark ? DARK_COLORS : COLORS;
+
+  return (
+    <ChatStack.Navigator
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: colors.background },
+      }}
+    >
+      <ChatStack.Screen name="ChatList" component={ChatListScreen} />
+      <ChatStack.Screen name="ChatDetail" component={ChatDetailScreen} />
+    </ChatStack.Navigator>
   );
 }
 
@@ -83,6 +104,14 @@ export default function AppNavigator() {
           options={{
             tabBarLabel: "Accueil",
             tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
+          }}
+        />
+        <Tab.Screen
+          name="Chat"
+          component={ChatStackScreen}
+          options={{
+            tabBarLabel: "Agent",
+            tabBarIcon: ({ color, size }) => <MessageSquare size={size} color={color} />,
           }}
         />
         <Tab.Screen

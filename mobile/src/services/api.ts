@@ -1,5 +1,6 @@
 import { API_TIMEOUT, MAX_RETRIES, INITIAL_RETRY_DELAY } from "../config/constants";
 import { logger } from "../utils/logger";
+import type { Conversation, Message } from "../types";
 
 class ApiClient {
   private baseUrl = "";
@@ -85,7 +86,7 @@ class ApiClient {
     return this.request<T>("DELETE", path, body);
   }
 
-  async uploadAudio(path: string, uri: string): Promise<unknown> {
+  async uploadAudio(uri: string): Promise<{ text: string; cloud_id: string }> {
     if (!this.isConfigured()) throw new Error("Server not configured");
 
     const formData = new FormData();
@@ -95,7 +96,7 @@ class ApiClient {
       name: "recording.wav",
     } as any);
 
-    const response = await fetch(`${this.baseUrl}${path}`, {
+    const response = await fetch(`${this.baseUrl}/api/transcribe`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${this.token}`,
@@ -108,6 +109,26 @@ class ApiClient {
       throw new Error(data?.error || `Upload failed: ${response.status}`);
     }
     return response.json();
+  }
+
+  async getConversations(): Promise<{ data: Conversation[] }> {
+    return this.get("/api/agent/conversations");
+  }
+
+  async createConversation(title?: string): Promise<{ data: Conversation }> {
+    return this.post("/api/agent/conversations", { title });
+  }
+
+  async deleteConversation(cloudId: string): Promise<void> {
+    return this.delete(`/api/agent/conversations/${cloudId}`);
+  }
+
+  async getMessages(cloudId: string): Promise<{ data: Message[] }> {
+    return this.get(`/api/agent/conversations/${cloudId}/messages`);
+  }
+
+  async sendMessage(cloudId: string, role: string, content: string): Promise<{ data: Message }> {
+    return this.post(`/api/agent/conversations/${cloudId}/messages`, { role, content });
   }
 }
 
