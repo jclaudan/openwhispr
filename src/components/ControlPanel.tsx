@@ -27,6 +27,7 @@ import {
   useMeetingRecordingStore,
 } from "../stores/meetingRecordingStore";
 import ControlPanelSidebar, { type ControlPanelView } from "./ControlPanelSidebar";
+import { OPENWHISPR_API_URL } from "../config/constants";
 import MeetingRecordingMount from "./MeetingRecordingMount";
 import MeetingRecordingPill from "./notes/MeetingRecordingPill";
 import WindowControls from "./WindowControls";
@@ -758,7 +759,7 @@ export default function ControlPanel({ initialSettingsSection }: ControlPanelPro
             userImage={user?.image}
             isSignedIn={isSignedIn}
             authLoaded={authLoaded}
-            isProUser={!!(usage?.isSubscribed || usage?.isTrial)}
+            isProUser={!OPENWHISPR_API_URL || !!(usage?.isSubscribed || usage?.isTrial)}
             usageLoaded={usage?.hasLoaded ?? false}
             updateAction={
               !updateStatus.isDevelopment &&
@@ -949,7 +950,7 @@ export default function ControlPanel({ initialSettingsSection }: ControlPanelPro
             {activeView === "integrations" && (
               <Suspense fallback={null}>
                 <IntegrationsView
-                  isPaid={!!(usage?.isSubscribed || usage?.isTrial)}
+                  isPaid={!OPENWHISPR_API_URL || !!(usage?.isSubscribed || usage?.isTrial)}
                   onUpgrade={() => {
                     setSettingsSection("plansBilling");
                     setShowSettings(true);
